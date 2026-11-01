@@ -3,9 +3,9 @@
 A full-stack web application for keeping track of a vehicle fleet and its maintenance schedule.
 Each user registers, logs in, and manages **their own** vehicles and service jobs. All data is stored in MongoDB.
 
-> **Module:** EC4307 Web Application Development – Mini Project
+> > **Module:** EC4307 Web Application Development – Mini Project
 > **Student:** FERNANDO L.N.T.
-> **Index number:EG/2023/5593
+> **Index number:** EG/2023/5593
 
 ---
 
