@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { api } from "../api";
 
@@ -6,7 +7,7 @@ export const useFleet = () => useContext(FleetContext);
 
 export function FleetProvider({ children }) {
   const [vehicles, setVehicles] = useState([]);
-  const [maintenance, setMaintenance] = useState([]); // real API comes later
+  const [maintenance, setMaintenance] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [user, setUser] = useState(() => {
     try {
@@ -30,15 +31,19 @@ export function FleetProvider({ children }) {
     setUser(null);
   };
 
-  // load my vehicles from the database whenever someone is logged in
+  // load my vehicles and services from the database whenever someone is logged in
   useEffect(() => {
     if (!user) {
       setVehicles([]);
+      setMaintenance([]);
       return;
     }
-    api("/api/vehicles")
-      .then(setVehicles)
-      .catch(() => logout()); // bad or expired token, so send them back to login
+    Promise.all([api("/api/vehicles"), api("/api/maintenance")])
+      .then(([v, m]) => {
+        setVehicles(v);
+        setMaintenance(m);
+      })
+      .catch(() => logout()); // bad or expired token, so back to login
   }, [user]);
 
   // ---------- vehicles (saved in MongoDB) ----------
@@ -74,11 +79,23 @@ export function FleetProvider({ children }) {
     }
   };
 
-  // ---------- maintenance (still in memory for now) ----------
-  const addJob = (data) =>
-    setMaintenance((prev) => [...prev, { ...data, id: `m-${Date.now()}` }]);
-  const updateJob = (id, data) =>
-    setMaintenance((prev) => prev.map((m) => (m.id === id ? { ...m, ...data } : m)));
+  // ---------- maintenance (saved in MongoDB) ----------
+  const addJob = async (data) => {
+    try {
+      const saved = await api("/api/maintenance", { method: "POST", body: data });
+      setMaintenance((prev) => [...prev, saved]);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+  const updateJob = async (id, data) => {
+    try {
+      const saved = await api(`/api/maintenance/${id}`, { method: "PUT", body: data });
+      setMaintenance((prev) => prev.map((m) => (m.id === id ? saved : m)));
+    } catch (err) {
+      alert(err.message);
+    }
+  };
   const completeJob = (id) => updateJob(id, { status: "Complete" });
 
   // ---------- photos (still in memory) ----------
