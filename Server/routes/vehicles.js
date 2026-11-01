@@ -1,5 +1,6 @@
 import express from "express";
 import Vehicle from "../models/Vehicle.js";
+import Maintenance from "../models/Maintenance.js";
 import auth from "../middleware/auth.js";
 
 const router = express.Router();
@@ -55,7 +56,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// DELETE /api/vehicles/:id : delete one of my vehicles
+// DELETE /api/vehicles/:id : delete one of my vehicles (and its services)
 router.delete("/:id", async (req, res) => {
   try {
     const vehicle = await Vehicle.findOneAndDelete({
@@ -63,6 +64,7 @@ router.delete("/:id", async (req, res) => {
       owner: req.user.id,
     });
     if (!vehicle) return res.status(404).json({ message: "Vehicle not found" });
+    await Maintenance.deleteMany({ vehicleId: vehicle._id });
     res.json({ message: "Vehicle deleted" });
   } catch {
     res.status(400).json({ message: "Invalid vehicle id" });
