@@ -1,14 +1,12 @@
-import { createContext, useContext, useState } from "react";
-import { sampleVehicles, sampleMaintenance } from "../data/sampleData";
+import { createContext, useContext, useEffect, useState } from "react";
+import { api } from "../api";
 
 const FleetContext = createContext(null);
-
-// Shortcut so pages can write: const { vehicles } = useFleet();
 export const useFleet = () => useContext(FleetContext);
 
 export function FleetProvider({ children }) {
-  const [vehicles, setVehicles] = useState(sampleVehicles);
-  const [maintenance, setMaintenance] = useState(sampleMaintenance);
+  const [vehicles, setVehicles] = useState([]);
+  const [maintenance, setMaintenance] = useState([]); // real API comes later
   const [photos, setPhotos] = useState([]);
   const [user, setUser] = useState(() => {
     try {
@@ -18,47 +16,78 @@ export function FleetProvider({ children }) {
     }
   });
 
-  // ---------- auth (fake for now, real JWT login comes with the backend) ----------
-  const login = (email) => {
-    const u = { email };
-    localStorage.setItem("fleet-user", JSON.stringify(u));
-    setUser(u);
+  // ---------- auth (real JWT login through the backend) ----------
+  const authenticate = async (mode, email, password) => {
+    // mode is "register" or "login"
+    const data = await api(`/api/auth/${mode}`, { method: "POST", body: { email, password } });
+    localStorage.setItem("fleet-token", data.token);
+    localStorage.setItem("fleet-user", JSON.stringify(data.user));
+    setUser(data.user);
   };
   const logout = () => {
+    localStorage.removeItem("fleet-token");
     localStorage.removeItem("fleet-user");
     setUser(null);
   };
 
-  // ---------- vehicles ----------
+  // load my vehicles from the database whenever someone is logged in
+  useEffect(() => {
+    if (!user) {
+      setVehicles([]);
+      return;
+    }
+    api("/api/vehicles")
+      .then(setVehicles)
+      .catch(() => logout()); // bad or expired token, so send them back to login
+  }, [user]);
+
+  // ---------- vehicles (saved in MongoDB) ----------
   const getVehicle = (id) => vehicles.find((v) => v.id === id);
   const vehicleName = (id) => {
     const v = getVehicle(id);
     return v ? `${v.make} ${v.model}` : "Unknown vehicle";
   };
-  const addVehicle = (data) =>
-    setVehicles((prev) => [...prev, { ...data, id: `vh-${Date.now()}` }]);
-  const updateVehicle = (id, data) =>
-    setVehicles((prev) => prev.map((v) => (v.id === id ? { ...v, ...data } : v)));
-  const deleteVehicle = (id) => {
-    setVehicles((prev) => prev.filter((v) => v.id !== id));
-    setMaintenance((prev) => prev.filter((m) => m.vehicleId !== id));
-    setPhotos((prev) => prev.filter((p) => p.vehicleId !== id));
+  const addVehicle = async (data) => {
+    try {
+      const saved = await api("/api/vehicles", { method: "POST", body: data });
+      setVehicles((prev) => [saved, ...prev]);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+  const updateVehicle = async (id, data) => {
+    try {
+      const saved = await api(`/api/vehicles/${id}`, { method: "PUT", body: data });
+      setVehicles((prev) => prev.map((v) => (v.id === id ? saved : v)));
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+  const deleteVehicle = async (id) => {
+    try {
+      await api(`/api/vehicles/${id}`, { method: "DELETE" });
+      setVehicles((prev) => prev.filter((v) => v.id !== id));
+      setMaintenance((prev) => prev.filter((m) => m.vehicleId !== id));
+      setPhotos((prev) => prev.filter((p) => p.vehicleId !== id));
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
-  // ---------- maintenance ----------
+  // ---------- maintenance (still in memory for now) ----------
   const addJob = (data) =>
     setMaintenance((prev) => [...prev, { ...data, id: `m-${Date.now()}` }]);
   const updateJob = (id, data) =>
     setMaintenance((prev) => prev.map((m) => (m.id === id ? { ...m, ...data } : m)));
   const completeJob = (id) => updateJob(id, { status: "Complete" });
 
-  // ---------- photos ----------
+  // ---------- photos (still in memory) ----------
   const addPhotos = (vehicleId, files) => {
     const added = files.map((file, i) => ({
       id: `p-${Date.now()}-${i}`,
       vehicleId,
       name: file.name,
-      url: URL.createObjectURL(file), // temporary browser URL, lost on refresh
+      url: URL.createObjectURL(file),
     }));
     setPhotos((prev) => [...prev, ...added]);
   };
@@ -69,7 +98,7 @@ export function FleetProvider({ children }) {
   };
 
   const value = {
-    user, login, logout,
+    user, authenticate, logout,
     vehicles, getVehicle, vehicleName, addVehicle, updateVehicle, deleteVehicle,
     maintenance, addJob, updateJob, completeJob,
     photos, addPhotos, deletePhoto,

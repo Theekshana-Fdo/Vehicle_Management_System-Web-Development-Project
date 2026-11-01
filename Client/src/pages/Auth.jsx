@@ -5,7 +5,7 @@ import { useFleet } from "../context/FleetContext";
 import { inputClass } from "../components/Field";
 
 export default function Auth() {
-  const { login } = useFleet();
+const { authenticate } = useFleet();
   const navigate = useNavigate();
   const [mode, setMode] = useState("signup"); // "signup" or "signin"
   const [email, setEmail] = useState("");
@@ -13,13 +13,17 @@ export default function Auth() {
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+   const handleSubmit = async (e) => {
     e.preventDefault(); // stop the browser from reloading the page
     if (!/^\S+@\S+\.\S+$/.test(email)) return setError("Please enter a valid email address.");
     if (password.length < 6) return setError("Password must be at least 6 characters.");
     setError("");
-    login(email); // later: call the backend /api/auth/login here
-    navigate("/");
+    try {
+      await authenticate(mode === "signup" ? "register" : "login", email, password);
+      navigate("/");
+    } catch (err) {
+      setError(err.message); // shows "Invalid email or password" etc.
+    }
   };
 
   const isSignup = mode === "signup";

@@ -5,6 +5,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import authRoutes from "./routes/auth.js";
+import vehicleRoutes from "./routes/vehicles.js";
+import maintenanceRoutes from "./routes/maintenance.js";
 
 dotenv.config();
 
@@ -14,6 +16,8 @@ app.use(express.json());
 
 app.get("/", (req, res) => res.send("Fleetwise API is running"));
 app.use("/api/auth", authRoutes);
+app.use("/api/vehicles", vehicleRoutes);
+app.use("/api/maintenance", maintenanceRoutes);
 
 const PORT = process.env.PORT || 5000;
 

@@ -52,13 +52,21 @@ export default function Vehicles() {
   const location = useLocation();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [sortBy, setSortBy] = useState("newest");
   // editing: null = closed, "new" = add form, or a vehicle object = edit form
   const [editing, setEditing] = useState(location.state?.openAdd ? "new" : null);
 
-  const shown = vehicles.filter((v) => {
-    const text = `${v.make} ${v.model} ${v.registration}`.toLowerCase();
-    return text.includes(search.toLowerCase()) && (statusFilter === "All" || v.status === statusFilter);
-  });
+   const shown = vehicles
+    .filter((v) => {
+      const text = `${v.make} ${v.model} ${v.registration}`.toLowerCase();
+      return text.includes(search.toLowerCase()) && (statusFilter === "All" || v.status === statusFilter);
+    })
+    .sort((a, b) => {
+      if (sortBy === "make") return `${a.make} ${a.model}`.localeCompare(`${b.make} ${b.model}`);
+      if (sortBy === "year") return b.year - a.year;
+      if (sortBy === "odometer") return b.odometer - a.odometer;
+      return 0; // "newest": the server already sends the newest first
+    });
 
   const handleSave = (data) => {
     if (editing === "new") addVehicle(data);
@@ -100,6 +108,12 @@ export default function Vehicles() {
             <select className={`${inputClass} w-auto`} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
               <option value="All">All statuses</option>
               <option>Active</option><option>In service</option><option>Inactive</option>
+            </select>
+             <select className={`${inputClass} w-auto`} value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+              <option value="newest">Newest first</option>
+              <option value="make">Make A–Z</option>
+              <option value="year">Year (newest)</option>
+              <option value="odometer">Odometer (highest)</option>
             </select>
           </div>
         </div>
